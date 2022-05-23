@@ -20,19 +20,24 @@ def print_last_display():
     print("__FUNCTION__print_last_display()")
     print("     previous_operation=", previous_operation)
     if previous_operation != "":
-        display_label.config(text=previous_operation)
+        prev_display_label.config(text=previous_operation)
 
 
 def print_to_display(val):
     print("__FUNCTION__print_to_display(val)")
     print_last_display()
-    current_text = display_label['text']
-    if val - int(val) == 0:
-        new_text = current_text + '\n' + str(int(val))
-        display_label.config(text=new_text)
-    else:
-        new_text = current_text + '\n' + str(val)
-        display_label.config(text=str(new_text))
+    current_text = float(display_label['text'])
+    print(" current_text = ", current_text)
+    print(" val = ", val)
+    try:
+        if val - int(val) == 0:
+            # new_text = current_text + '\n' + str(int(val))
+            display_label.config(text=str(int(val)))
+        else:
+            # new_text = current_text + '\n' + str(val)
+            display_label.config(text=str(val))
+    except ValueError:
+        display_label.config(text=str(val))
 
 
 def on_numpad_press(text):
@@ -56,15 +61,16 @@ def on_button_press(text):
     current_text = display_label['text']
     if current_text != "":
         if text == 'C':
-            # INCORRECT FUNCTIONALITY RIGHT NOW
             # display_label.config(text="")
-            print_to_display('')
+            display_label.config(text='')
+            previous_operation = ''
+            prev_display_label.config(text='')
         elif text == 'CE':
             # display_label.config(text="")
-            print_to_display('')
+            display_label.config(text='')
         elif text == 'BSPC':
             # display_label.config(text=current_text[:len(current_text) - 1])
-            print_to_display(int(current_text[:len(current_text) - 1]))
+            print_to_display(current_text[:len(current_text) - 1])
         elif text == '%':
             print('%')
         elif text == '1/x':
@@ -111,12 +117,15 @@ root = tk.Tk()
 numpad_canvas = tk.Canvas(root, height=700, width=1400, bg="#263D42")
 numpad_canvas.pack(fill="both", expand=True)
 
-display = tk.Frame(root, height=700, width=700)
+display = tk.Frame(root, height=600, width=700)
 hist_mem = tk.Frame(root)
 
 display_label = tk.Label(root, height=200, width=700, text="", background="white")
+prev_display_label = tk.Label(root, height=100, width=700, text="", background="gray")
 display_label.pack(fill="both", expand=True)
-display_label.place(relx=0, rely=0, relwidth=0.495, relheight=0.24)
+prev_display_label.pack(fill="both", expand=True)
+display_label.place(relx=0, rely=0.1, relwidth=0.495, relheight=0.12)
+prev_display_label.place(relx=0, rely=0, relwidth=0.495, relheight= 0.12)
 
 hist_label = tk.Label(root, height=200, width=700, text="History", background="green")
 hist_label.pack(fill="both", expand=True)
