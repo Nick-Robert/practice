@@ -1,9 +1,22 @@
+"""
+TODO
+- Add functionality to operations and %
+- Create history list
+- Add memory
+- Need to fix the floating point error somehow. Consider using the ASCII method 
+"""
+
 from functools import partial
 from logging import exception
 import tkinter as tk
 from tkinter import filedialog, Text
 import os
 from math import sqrt
+import decimal
+
+decimal.setcontext(decimal.BasicContext)
+decimal.getcontext()
+# decimal.getcontext().prec = 5
 
 buttons_symbols = ['%', 'CE', 'C', 'BSPC', '1/x', 'x^2', 'sqrt(x)', '/', '7', '8', '9', 'x', '4', '5', '6', '--', '1', '2', '3', '+', '-', '0', '.', '=']
 numpad_buttons_symbols = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.']
@@ -11,26 +24,55 @@ history = []
 
 
 previous_operation = ""
+previous_operation_calculated = False
+def execute_operation():
+    # this function actually fulfills the operation found in previous_operation
+    # should contain three terms
+    global previous_operation_calculated
+    global previous_operation
+    history.append(previous_operation)
+    operation_list = previous_operation.split()
+    print("previous_operation = ", previous_operation)
+    print("operation_list = ", operation_list)
+    previous_operation_calculated = True
+    if operation_list[1] == '/':
+        # division
+        return decimal.Decimal(operation_list[0]) / decimal.Decimal(operation_list[2])
+    elif operation_list[1] == 'x':
+        # multiply
+        return decimal.Decimal(operation_list[0]) * decimal.Decimal(operation_list[2])
+    elif operation_list[1] == '--':
+        return decimal.Decimal(operation_list[0]) - decimal.Decimal(operation_list[2])
+    elif operation_list[1] == '+':
+        return decimal.Decimal(operation_list[0]) + decimal.Decimal(operation_list[2])
+    else:
+        raise Exception("Major error in compute_operation")
+        
+
+
 def save_operation(text):
     print("__FUNCTION__save_operation(val)")
+    global previous_operation
     previous_operation = text
+    prev_display_label.config(text=text)
 
 
 def print_last_display():
     print("__FUNCTION__print_last_display()")
-    print("     previous_operation=", previous_operation)
+    # print("     previous_operation=", previous_operation)
+    global previous_operation
     if previous_operation != "":
         prev_display_label.config(text=previous_operation)
 
 
 def print_to_display(val):
     print("__FUNCTION__print_to_display(val)")
-    print_last_display()
-    current_text = float(display_label['text'])
+    # print_last_display()
+    current_text = decimal.Decimal(display_label['text'])
     print(" current_text = ", current_text)
     print(" val = ", val)
     try:
-        if val - int(val) == 0:
+        if float(val) - int(val) == 0:
             # new_text = current_text + '\n' + str(int(val))
             display_label.config(text=str(int(val)))
         else:
@@ -59,6 +101,11 @@ def on_numpad_press(text):
 def on_button_press(text):
     # print("__FUNCTION__on_button_press", text)
     current_text = display_label['text']
+    global previous_operation
+    global previous_operation_calculated
+    if previous_operation_calculated:
+        save_operation("")
+        previous_operation_calculated = False
     if current_text != "":
         if text == 'C':
             # display_label.config(text="")
@@ -75,25 +122,24 @@ def on_button_press(text):
             print('%')
         elif text == '1/x':
             try:
-                print(type(current_text))
+                # print(type(current_text))
                 new_val = 1 / float(current_text)
             except:
                 raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
             print_to_display(new_val)
         elif text == 'x^2':
             try:
-                new_val = float(current_text) ** 2
+                new_val = decimal.Decimal(current_text) ** decimal.Decimal(2)
             except:
                 raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
             print_to_display(new_val)
         elif text == 'sqrt(x)':
             try:
-                new_val = sqrt(float(current_text))
+                new_val = decimal.Decimal(current_text).sqrt()
             except:
                 raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
             print_to_display(new_val)
         elif text == '/' or text == 'x' or text == '--' or text == '+':
-            print("here")
             save_operation(current_text + ' ' + text)
         # elif text == 'x':
         #     print(text)
@@ -102,7 +148,18 @@ def on_button_press(text):
         # elif text == '+':
         #     print(text)
         elif text == '=':
-            print(text)
+            # print(previous_operation)
+            if previous_operation == '' or (len(previous_operation.split()) == 2 and previous_operation[-1] == '='):
+                # print(previous_operation)
+                # print(previous_operation[-1])
+                save_operation(current_text + ' ' + text)
+                print_to_display(current_text)
+            else:
+                save_operation(prev_display_label['text'] + ' ' + current_text + ' ' + text)
+                value = execute_operation()
+                print_to_display(value)
+
+
         else:
             # print("here")
             raise Exception("Error, text not recognized")
