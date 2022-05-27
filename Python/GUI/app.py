@@ -1,237 +1,250 @@
 """
 TODO
-- Add functionality to operations and %
+- Add functionality to %
 - Create history list
+- Refactor code to be OO
+- Make the default value be 0
 - Add memory
 - Need to fix the floating point error somehow. Consider using the ASCII method 
 """
 
 from functools import partial
+from historybuttons import HistoryButtons
+from display import Display, Numberpad
 import tkinter as tk
 from tkinter import filedialog, Text
 import os
 import decimal
+from config import buttons_symbols, numpad_buttons_symbols
 
-# class adapted from last comment in this forum post: https://stackoverflow.com/questions/70486666/tkinter-scrollbar-only-scrolls-downwards-and-cuts-off-content 
-class ScrolledButtons(tk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.canvas = tk.Canvas(self)
-        self.vsb = tk.Scrollbar(self, command=self.canvas.yview, orient="vertical")
-        self.canvas.configure(yscrollcommand=self.vsb.set)
 
-        self.vsb.pack(side="right", fill="y")
-        self.canvas.pack(side="left", fill="both", expand=True)
+# define calculator class that uses the other classes to build and maintain itself
+class SimpleCalculator(HistoryButtons, tk.Frame):
+    def __init__(self, root):
+        super().__init__(root)
+        # basic frames and canvas
+        # self.display = Display(root)
+        self.numpad = Numberpad(root)
+        self.hist_mem = tk.Frame(root, height=700, width=700, bg="#263D42")
+        self.hist_mem.pack(side=tk.RIGHT, fill="both", expand=True)
+        # lists used to setup information, will likely need to be moved/duplicated 
+        self.history = []
+        self.previous_operation = ""
+        self.previous_operation_calculated = False
+        self.last_action_was_operation = False
 
-        for n in range(40):
-            x = 2
-            y = self.lasty + x
-            btn = tk.Button(self.canvas, text=f'Button #{n}', justify="right", command=lambda te=n: self._on_click(te))
-            self.canvas.create_window(20, y, anchor="nw", window=btn)
-        bbox = self.canvas.bbox("all")
-        self.canvas.configure(scrollregion=(0, 0, bbox[2], bbox[3]))
+        self.hist_label = tk.Label(self.hist_mem, text="History", background="green")
+        self.hist_label.pack(fill="both", expand=True)
+        self.hist_label.place(relx=0, rely=0, relwidth=1, relheight=0.12)
 
-    @property
-    def lasty(self):
-        bbox = self.canvas.bbox("all")
-        lasty = bbox[3] if bbox else 0
-        return lasty
+        self.hist_buttons = HistoryButtons(self.hist_mem)
+        self.hist_buttons.pack(fill="both", expand=True)
+        self.hist_buttons.place(rely=0.12, relwidth=1, relheight=0.88)
+        self.hist_buttons._add_all_buttons()
+
+        self.next_row = False
+        self.current_row = 2
+        self.current_col = 0
+
+        self._configure_numpad_buttons()
     
-    def _on_click(text):
-        print("will put the text in that button into the calculator again")
+    def _configure_numpad_buttons(self):
+        # function that configures the numpad buttons to have the desired function
+        for index, button in enumerate(self.numpad.buttons):
+            btn_text = button['text']
+            print(btn_text)
+            print(" index = ", index)
+            if btn_text in numpad_buttons_symbols:
+                button.config(command=lambda te=btn_text: self._on_numpad_press(te))
+            else:
+                button.config(command=lambda te=btn_text: self._on_button_press(te))
+    
+    def _configure_history_buttons(self):
+        # function that configures the history buttons to have the desired style and function
+        
+        pass
+
+
+    def execute_operation(self):
+        # this function actually fulfills the operation found in previous_operation
+        # history.append(previous_operation)
+        operation_list = self.previous_operation.split()
+        # print("previous_operation = ", previous_operation)
+        # print("operation_list = ", operation_list)
+        self.previous_operation_calculated = True
+        result = ""
+        # print('len(operation_list) = ' + str(len(operation_list)))
+        if len(operation_list) == 4:
+            # print(operation_list)
+            if operation_list[1] == '/':
+                # division
+                # print(decimal.Decimal(operation_list[0]))
+                # print(decimal.Decimal(operation_list[1]))
+                result = decimal.Decimal(operation_list[0]) / decimal.Decimal(operation_list[2])
+                # print(result)
+            elif operation_list[1] == 'x':
+                # multiply
+                result = decimal.Decimal(operation_list[0]) * decimal.Decimal(operation_list[2])
+            elif operation_list[1] == '--':
+                result = decimal.Decimal(operation_list[0]) - decimal.Decimal(operation_list[2])
+            elif operation_list[1] == '+':
+                result = decimal.Decimal(operation_list[0]) + decimal.Decimal(operation_list[2])
+            else:
+                raise Exception("Major error in compute_operation")
+        elif len(operation_list) == 2:
+            result = operation_list[0]
+        # print(result)
+        # print(str(result))
+        self.history.append(self.previous_operation + " " + str(result))
+        print(self.history)
+        # update_history(previous_operation + " " + str(result))
+        return result
+            
+
+    def save_operation(self, text):
+        # print("__FUNCTION__save_operation(val)")
+        self.last_action_was_operation = True
+        self.previous_operation = text
+        self.numpad.prev_display_label.config(text=text)
+
+
+    def print_last_display(self):
+        # print("__FUNCTION__print_last_display()")
+        # print("     previous_operation=", previous_operation)
+        if self.previous_operation != "":
+            self.numpad.prev_display_label.config(text=self.previous_operation)
+
+
+    def print_to_display(self, val):
+        # print("__FUNCTION__print_to_display(val)")
+        # print_last_display()
+        # current_text = decimal.Decimal(display_label['text'])
+        # print(" current_text = ", current_text)
+        # print(" val = ", val)
+        try:
+            if float(val) - int(val) == 0:
+                # new_text = current_text + '\n' + str(int(val))
+                self.numpad.display_label.config(text=str(int(val)))
+            else:
+                # new_text = current_text + '\n' + str(val)
+                self.numpad.display_label.config(text=str(val))
+        except ValueError:
+            self.numpad.display_label.config(text=str(val))
+
+    def _on_numpad_press(self, text):
+        # print("__FUNCTION__on_numpad_press", text)
+        if self.previous_operation_calculated:
+            self.save_operation("")
+            self.previous_operation_calculated = False
+        if self.last_action_was_operation:
+            self.numpad.display_label.config(text='')
+            self.last_action_was_operation = False
+        current_text = self.numpad.display_label['text']
+        if text != '-':
+            self.numpad.display_label.config(text=current_text+text)
+        elif text == '-' and current_text != "":
+            if current_text[0] == '-':
+                self.numpad.display_label.config(text=current_text[1:])
+            else:
+                self.numpad.display_label.config(text='-'+current_text)
+        elif text == '-' and current_text == "":
+            self.numpad.display_label.config(text="")
+        else:
+            self.numpad.display_label.config(text="error")
+
+
+    def _on_button_press(self, text):
+        # print("__FUNCTION__on_button_press", text)
+        # print("last_action_was_operation = ", last_action_was_operation)
+        if self.previous_operation_calculated and text != 'CE':
+            self.save_operation("")
+            self.previous_operation_calculated = False
+        current_text = self.numpad.display_label['text']
+        if current_text != "":
+            if text == 'C':
+                # display_label.config(text="")
+                self.numpad.display_label.config(text='')
+                self.previous_operation = ''
+                self.numpad.prev_display_label.config(text='')
+                self.previous_operation_calculated = False
+            elif text == 'CE':
+                # display_label.config(text="")
+                self.numpad.display_label.config(text='')
+            elif text == 'BSPC':
+                # display_label.config(text=current_text[:len(current_text) - 1])
+                self.print_to_display(current_text[:len(current_text) - 1])
+            elif text == '%':
+                print('%')
+            elif text == '1/x':
+                try:
+                    # print(type(current_text))
+                    new_val = 1 / float(current_text)
+                except:
+                    raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
+                self.print_to_display(new_val)
+            elif text == 'x^2':
+                try:
+                    new_val = decimal.Decimal(current_text) ** decimal.Decimal(2)
+                except:
+                    raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
+                self.print_to_display(new_val)
+            elif text == 'sqrt(x)':
+                try:
+                    new_val = decimal.Decimal(current_text).sqrt()
+                except:
+                    raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
+                self.print_to_display(new_val)
+            elif text == '/' or text == 'x' or text == '--' or text == '+':
+                # if last_action_was_operation, then need to get rid of the last operation and replace it with the new
+                if self.last_action_was_operation:
+                    # print(previous_operation)
+                    self.previous_operation = self.previous_operation[:len(self.previous_operation) - 1]
+                    # print(previous_operation + ".")
+                self.save_operation(current_text + ' ' + text)
+            # elif text == 'x':
+            #     print(text)
+            # elif text == '--':
+            #     print(text)
+            # elif text == '+':
+            #     print(text)
+            elif text == '=':
+                # print(previous_operation)
+                if self.previous_operation == '' or (len(self.previous_operation.split()) == 2 and self.previous_operation[-1] == '='):
+                    # print(previous_operation)
+                    # print(previous_operation[-1])
+                    self.save_operation(current_text + ' ' + text)
+                    value = self.execute_operation()
+                    self.print_to_display(value)
+                else:
+                    self.save_operation(self.numpad.prev_display_label['text'] + ' ' + current_text + ' ' + text)
+                    # print(previous_operation)
+                    value = self.execute_operation()
+                    self.print_to_display(value)
+            else:
+                # print("here")
+                raise Exception("Error, text not recognized")
+
+# current plan is this:
+# create the root first, then initialize the SimpleCalculator with that root
+# refactor the code to put all functions inside SimpleCalculator and create classes to initialize
+# the different tkinter components like it was done with the history buttons
 
 
 decimal.setcontext(decimal.BasicContext)
 decimal.getcontext()
 # decimal.getcontext().prec = 5
 
-buttons_symbols = ['%', 'CE', 'C', 'BSPC', '1/x', 'x^2', 'sqrt(x)', '/', '7', '8', '9', 'x', '4', '5', '6', '--', '1', '2', '3', '+', '-', '0', '.', '=']
-numpad_buttons_symbols = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.']
-history = []
+# buttons_symbols = ['%', 'CE', 'C', 'BSPC', '1/x', 'x^2', 'sqrt(x)', '/', '7', '8', '9', 'x', '4', '5', '6', '--', '1', '2', '3', '+', '-', '0', '.', '=']
+# numpad_buttons_symbols = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.']
+# history = []
 
 
-previous_operation = ""
-previous_operation_calculated = False
-last_action_was_operation = False
-
-
-def update_history():
-    global root
+# previous_operation = ""
+# previous_operation_calculated = False
+# last_action_was_operation = False
 
 
 
-def execute_operation():
-    # this function actually fulfills the operation found in previous_operation
-    global previous_operation_calculated
-    global previous_operation
-    # history.append(previous_operation)
-    operation_list = previous_operation.split()
-    # print("previous_operation = ", previous_operation)
-    # print("operation_list = ", operation_list)
-    previous_operation_calculated = True
-    result = ""
-    # print('len(operation_list) = ' + str(len(operation_list)))
-    if len(operation_list) == 4:
-        # print(operation_list)
-        if operation_list[1] == '/':
-            # division
-            # print(decimal.Decimal(operation_list[0]))
-            # print(decimal.Decimal(operation_list[1]))
-            result = decimal.Decimal(operation_list[0]) / decimal.Decimal(operation_list[2])
-            # print(result)
-        elif operation_list[1] == 'x':
-            # multiply
-            result = decimal.Decimal(operation_list[0]) * decimal.Decimal(operation_list[2])
-        elif operation_list[1] == '--':
-            result = decimal.Decimal(operation_list[0]) - decimal.Decimal(operation_list[2])
-        elif operation_list[1] == '+':
-            result = decimal.Decimal(operation_list[0]) + decimal.Decimal(operation_list[2])
-        else:
-            raise Exception("Major error in compute_operation")
-    elif len(operation_list) == 2:
-        result = operation_list[0]
-    # print(result)
-    # print(str(result))
-    history.append(previous_operation + " " + str(result))
-    print(history)
-    update_history(previous_operation + " " + str(result))
-    return result
-        
-
-
-def save_operation(text):
-    # print("__FUNCTION__save_operation(val)")
-    global previous_operation
-    global last_action_was_operation
-    last_action_was_operation = True
-    previous_operation = text
-    prev_display_label.config(text=text)
-
-
-def print_last_display():
-    # print("__FUNCTION__print_last_display()")
-    # print("     previous_operation=", previous_operation)
-    global previous_operation
-    if previous_operation != "":
-        prev_display_label.config(text=previous_operation)
-
-
-def print_to_display(val):
-    # print("__FUNCTION__print_to_display(val)")
-    # print_last_display()
-    # current_text = decimal.Decimal(display_label['text'])
-    # print(" current_text = ", current_text)
-    # print(" val = ", val)
-    try:
-        if float(val) - int(val) == 0:
-            # new_text = current_text + '\n' + str(int(val))
-            display_label.config(text=str(int(val)))
-        else:
-            # new_text = current_text + '\n' + str(val)
-            display_label.config(text=str(val))
-    except ValueError:
-        display_label.config(text=str(val))
-
-
-def on_numpad_press(text):
-    # print("__FUNCTION__on_numpad_press", text)
-    global last_action_was_operation
-    global previous_operation_calculated
-    if previous_operation_calculated:
-        save_operation("")
-        previous_operation_calculated = False
-    if last_action_was_operation:
-        display_label.config(text='')
-        last_action_was_operation = False
-    current_text = display_label['text']
-    if text != '-':
-        display_label.config(text=current_text+text)
-    elif text == '-' and current_text != "":
-        if current_text[0] == '-':
-            display_label.config(text=current_text[1:])
-        else:
-            display_label.config(text='-'+current_text)
-    elif text == '-' and current_text == "":
-        display_label.config(text="")
-    else:
-        display_label.config(text="error")
-
-
-def on_button_press(text):
-    # print("__FUNCTION__on_button_press", text)
-    global previous_operation
-    global previous_operation_calculated
-    global last_action_was_operation
-    # print("last_action_was_operation = ", last_action_was_operation)
-    if previous_operation_calculated and text != 'CE':
-        save_operation("")
-        previous_operation_calculated = False
-    current_text = display_label['text']
-    if current_text != "":
-        if text == 'C':
-            # display_label.config(text="")
-            display_label.config(text='')
-            previous_operation = ''
-            prev_display_label.config(text='')
-            previous_operation_calculated = False
-        elif text == 'CE':
-            # display_label.config(text="")
-            display_label.config(text='')
-        elif text == 'BSPC':
-            # display_label.config(text=current_text[:len(current_text) - 1])
-            print_to_display(current_text[:len(current_text) - 1])
-        elif text == '%':
-            print('%')
-        elif text == '1/x':
-            try:
-                # print(type(current_text))
-                new_val = 1 / float(current_text)
-            except:
-                raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
-            print_to_display(new_val)
-        elif text == 'x^2':
-            try:
-                new_val = decimal.Decimal(current_text) ** decimal.Decimal(2)
-            except:
-                raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
-            print_to_display(new_val)
-        elif text == 'sqrt(x)':
-            try:
-                new_val = decimal.Decimal(current_text).sqrt()
-            except:
-                raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
-            print_to_display(new_val)
-        elif text == '/' or text == 'x' or text == '--' or text == '+':
-            # if last_action_was_operation, then need to get rid of the last operation and replace it with the new
-            if last_action_was_operation:
-                # print(previous_operation)
-                previous_operation = previous_operation[:len(previous_operation) - 1]
-                # print(previous_operation + ".")
-            save_operation(current_text + ' ' + text)
-        # elif text == 'x':
-        #     print(text)
-        # elif text == '--':
-        #     print(text)
-        # elif text == '+':
-        #     print(text)
-        elif text == '=':
-            # print(previous_operation)
-            if previous_operation == '' or (len(previous_operation.split()) == 2 and previous_operation[-1] == '='):
-                # print(previous_operation)
-                # print(previous_operation[-1])
-                save_operation(current_text + ' ' + text)
-                value = execute_operation()
-                print_to_display(value)
-            else:
-                save_operation(prev_display_label['text'] + ' ' + current_text + ' ' + text)
-                # print(previous_operation)
-                value = execute_operation()
-                print_to_display(value)
-
-
-        else:
-            # print("here")
-            raise Exception("Error, text not recognized")
 
 
 # Holds the whole structure. So when you want to attach components, attach it to the root
@@ -242,25 +255,30 @@ root = tk.Tk()
 # numpad_canvas = tk.Canvas(root, height=700, width=1400, bg="#263D42")
 # numpad_canvas.pack(fill="both", expand=True)
 
-display = tk.Frame(root, height=700, width=700, bg="#263D42")
-display.pack(side=tk.LEFT, fill="both", expand=True)
-hist_mem = tk.Frame(root, height=700, width=700, bg="#263D42")
-hist_mem.pack(side=tk.RIGHT, fill="both", expand=True)
+calc = SimpleCalculator(root)
 
-display_label = tk.Label(display, text="", background="white")
-prev_display_label = tk.Label(display, text="", background="gray")
-display_label.pack(fill="both", expand=True)
-prev_display_label.pack(fill="both", expand=True)
-display_label.place(relx=0, rely=0.1, relwidth=1, relheight=0.12)
-prev_display_label.place(relx=0, rely=0, relwidth=1, relheight= 0.12)
+root.mainloop()
 
-hist_label = tk.Label(hist_mem, text="History", background="green")
-hist_label.pack(fill="both", expand=True)
-hist_label.place(relx=0, rely=0, relwidth=1, relheight=0.12)
+# display = tk.Frame(root, height=700, width=700, bg="#263D42")
+# display.pack(side=tk.LEFT, fill="both", expand=True)
+# hist_mem = tk.Frame(root, height=700, width=700, bg="#263D42")
+# hist_mem.pack(side=tk.RIGHT, fill="both", expand=True)
 
-hist_buttons = ScrolledButtons(hist_mem)
-hist_buttons.pack(fill="both", expand=True)
-hist_buttons.place(rely=0.12, relwidth=1, relheight=0.88)
+# display_label = tk.Label(display, text="", background="white")
+# prev_display_label = tk.Label(display, text="", background="gray")
+# display_label.pack(fill="both", expand=True)
+# prev_display_label.pack(fill="both", expand=True)
+# display_label.place(relx=0, rely=0.1, relwidth=1, relheight=0.12)
+# prev_display_label.place(relx=0, rely=0, relwidth=1, relheight= 0.12)
+
+# hist_label = tk.Label(hist_mem, text="History", background="green")
+# hist_label.pack(fill="both", expand=True)
+# hist_label.place(relx=0, rely=0, relwidth=1, relheight=0.12)
+
+# hist_buttons = HistoryButtons(hist_mem)
+# hist_buttons.pack(fill="both", expand=True)
+# hist_buttons.place(rely=0.12, relwidth=1, relheight=0.88)
+# hist_buttons._add_all_buttons()
 
 # hist_frame_scroll = tk.Frame(hist_mem)
 # hist_frame_scroll.pack(fill="both", expand=True)
@@ -281,27 +299,27 @@ hist_buttons.place(rely=0.12, relwidth=1, relheight=0.88)
 # frame = tk.Frame(canvas, bg="white")
 # frame.place(relwidth=0.8, relheight=0.8, relx=0.1, rely=0.1)
 
-buttons = []
-next_row = False
-current_row = 2
-current_col = 0
-for index, symbol in enumerate(buttons_symbols):
-    if symbol in numpad_buttons_symbols:
-        button = tk.Button(display, text=symbol, command=partial(on_numpad_press, symbol))
-        if index % 4 == 0 and index != 0:
-            current_row += 1
-            current_col = 0
-        button.place(relx=(current_col)*0.248, rely=0.125*current_row, relwidth=0.248, relheight=0.125)
-        buttons.append(button)
-        current_col += 1
-    else:
-        button = tk.Button(display, text=symbol, command=partial(on_button_press, symbol))
-        if index % 4 == 0 and index != 0:
-            current_row += 1
-            current_col = 0
-        button.place(relx=(current_col)*0.248, rely=0.125*current_row, relwidth=0.248, relheight=0.125)
-        buttons.append(button)
-        current_col += 1
+# buttons = []
+# next_row = False
+# current_row = 2
+# current_col = 0
+# for index, symbol in enumerate(buttons_symbols):
+#     if symbol in numpad_buttons_symbols:
+#         button = tk.Button(display, text=symbol, command=partial(on_numpad_press, symbol))
+#         if index % 4 == 0 and index != 0:
+#             current_row += 1
+#             current_col = 0
+#         button.place(relx=(current_col)*0.248, rely=0.125*current_row, relwidth=0.248, relheight=0.125)
+#         buttons.append(button)
+#         current_col += 1
+#     else:
+#         button = tk.Button(display, text=symbol, command=partial(on_button_press, symbol))
+#         if index % 4 == 0 and index != 0:
+#             current_row += 1
+#             current_col = 0
+#         button.place(relx=(current_col)*0.248, rely=0.125*current_row, relwidth=0.248, relheight=0.125)
+#         buttons.append(button)
+#         current_col += 1
 
 # print(numpad_buttons)
 
@@ -311,13 +329,12 @@ for index, symbol in enumerate(buttons_symbols):
 
 
 # from tkinter import *
-from tkinter import ttk
+# from tkinter import ttk
 # root = Tk()
-frm = ttk.Frame(root, padding=10, height=700, width=700)
+# frm = ttk.Frame(root, padding=10, height=700, width=700)
 # canvas = tk.Canvas(root, height=700, width=700, bg="#263D42")
 # print(canvas.configure().keys())
 # print(frm.configure().keys())
 # frm.grid()
 # ttk.Label(frm, text="Hello World!").grid(column=0, row=0)
 # ttk.Button(frm, text="Quit", command=root.destroy).grid(column=1, row=0)
-root.mainloop()
