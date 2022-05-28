@@ -1,11 +1,10 @@
 import tkinter as tk
 from config import buttons_symbols, numpad_buttons_symbols
 
-# define classes to create display and numpad
+
 class Display(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
-        # basic frames and canvas
         self.display = tk.Frame(root, height=700, width=700, bg="#263D42")
         self.display.pack(side=tk.LEFT, fill="both", expand=True)
 
@@ -22,14 +21,11 @@ class Numberpad(Display, tk.Frame):
     def __init__(self, root):
         super().__init__(root)
         self.buttons = []
-
-        # actually initialize the buttons with helper variables
         self.next_row = False
         self.current_row = 2
         self.current_col = 0
         for index, symbol in enumerate(buttons_symbols):
             if symbol in numpad_buttons_symbols:
-                # issue with display and the button click functions
                 button = tk.Button(self.display, text=symbol)
                 if index % 4 == 0 and index != 0:
                     self.current_row += 1

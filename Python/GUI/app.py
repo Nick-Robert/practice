@@ -1,46 +1,45 @@
 """
 TODO
 - Add functionality to %
-- Create history list
-- Refactor code to be OO
 - Make the default value be 0
 - Add memory
 - Need to fix the floating point error somehow. Consider using the ASCII method 
+
+DONE
+- Refactor code to be OO
+- Create history list
+
 """
 
-from functools import partial
-from historybuttons import HistoryButtons
-from display import Display, Numberpad
+from history import HistoryButtons
+from display import Numberpad
 import tkinter as tk
-from tkinter import filedialog, Text
-import os
 import decimal
-from config import buttons_symbols, numpad_buttons_symbols
+from config import buttons_symbols, numpad_buttons_symbols, history
 
 
-# define calculator class that uses the other classes to build and maintain itself
-class SimpleCalculator(HistoryButtons, tk.Frame):
+class StandardCalculator(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
-        # basic frames and canvas
-        # self.display = Display(root)
         self.numpad = Numberpad(root)
-        self.hist_mem = tk.Frame(root, height=700, width=700, bg="#263D42")
-        self.hist_mem.pack(side=tk.RIGHT, fill="both", expand=True)
-        # lists used to setup information, will likely need to be moved/duplicated 
-        self.history = []
+        self.history_and_mem = HistoryButtons(root)
+        # self.history_and_mem.pack(fill="both", expand=True)
+        # self.history_and_mem.place(relx=0.5,rely=0.12, relwidth=1, relheight=0.88)
+        # self.hist_mem.place(rely=0.12, relwidth=1, relheight=0.88)
+        # self.history_and_mem._add_all_buttons()
+
+        # self.hist_label = tk.Label(self.hist_mem, text="History", background="green")
+        # self.hist_label.pack(fill="both", expand=True)
+        # self.hist_label.place(relx=0, rely=0, relwidth=1, relheight=0.12)
+
+        # self.hist_buttons = HistoryButtons(self.hist_mem)
+        # self.hist_buttons.pack(fill="both", expand=True)
+        # self.hist_buttons.place(rely=0.12, relwidth=1, relheight=0.88)
+        # self.hist_buttons._add_all_buttons()
+
         self.previous_operation = ""
         self.previous_operation_calculated = False
         self.last_action_was_operation = False
-
-        self.hist_label = tk.Label(self.hist_mem, text="History", background="green")
-        self.hist_label.pack(fill="both", expand=True)
-        self.hist_label.place(relx=0, rely=0, relwidth=1, relheight=0.12)
-
-        self.hist_buttons = HistoryButtons(self.hist_mem)
-        self.hist_buttons.pack(fill="both", expand=True)
-        self.hist_buttons.place(rely=0.12, relwidth=1, relheight=0.88)
-        self.hist_buttons._add_all_buttons()
 
         self.next_row = False
         self.current_row = 2
@@ -49,41 +48,45 @@ class SimpleCalculator(HistoryButtons, tk.Frame):
         self._configure_numpad_buttons()
     
     def _configure_numpad_buttons(self):
-        # function that configures the numpad buttons to have the desired function
         for index, button in enumerate(self.numpad.buttons):
             btn_text = button['text']
-            print(btn_text)
-            print(" index = ", index)
             if btn_text in numpad_buttons_symbols:
                 button.config(command=lambda te=btn_text: self._on_numpad_press(te))
-            else:
+            elif btn_text in buttons_symbols:
                 button.config(command=lambda te=btn_text: self._on_button_press(te))
+            else:
+                raise Exception("Error in configure_numpad_buttons")
     
     def _configure_history_buttons(self):
-        # function that configures the history buttons to have the desired style and function
-        
-        pass
+        for index, button in enumerate(self.history_and_mem.buttons):
+            btn_text = button['text']
+            button.config(command=lambda te=btn_text: self._on_histbutton_press(te))
 
+    def _on_histbutton_press(self, operation):
+        op_list = operation.split()
+        if len(op_list) > 3:
+            op_first_half = op_list[0] + " " + op_list[1] + " " + op_list[2] + " " + op_list[3]
+            self.previous_operation_calculated = True
+            self.previous_operation = operation
+            self.numpad.prev_display_label.config(text=op_first_half)
+            self.numpad.display_label.config(text=op_list[4])
+        elif len(op_list) == 3:
+            op_first_half = op_list[0] + " " + op_list[1]
+            self.previous_operation_calculated = True
+            self.previous_operation = operation
+            self.numpad.prev_display_label.config(text=op_first_half)
+            self.numpad.display_label.config(text=op_list[2])
+        else:
+            raise Exception("Error with history button function")
 
     def execute_operation(self):
-        # this function actually fulfills the operation found in previous_operation
-        # history.append(previous_operation)
         operation_list = self.previous_operation.split()
-        # print("previous_operation = ", previous_operation)
-        # print("operation_list = ", operation_list)
         self.previous_operation_calculated = True
         result = ""
-        # print('len(operation_list) = ' + str(len(operation_list)))
         if len(operation_list) == 4:
-            # print(operation_list)
             if operation_list[1] == '/':
-                # division
-                # print(decimal.Decimal(operation_list[0]))
-                # print(decimal.Decimal(operation_list[1]))
                 result = decimal.Decimal(operation_list[0]) / decimal.Decimal(operation_list[2])
-                # print(result)
             elif operation_list[1] == 'x':
-                # multiply
                 result = decimal.Decimal(operation_list[0]) * decimal.Decimal(operation_list[2])
             elif operation_list[1] == '--':
                 result = decimal.Decimal(operation_list[0]) - decimal.Decimal(operation_list[2])
@@ -93,46 +96,31 @@ class SimpleCalculator(HistoryButtons, tk.Frame):
                 raise Exception("Major error in compute_operation")
         elif len(operation_list) == 2:
             result = operation_list[0]
-        # print(result)
-        # print(str(result))
-        self.history.append(self.previous_operation + " " + str(result))
-        print(self.history)
-        # update_history(previous_operation + " " + str(result))
+        history.append(self.previous_operation + " " + str(result))
+        self.history_and_mem._remove_all_buttons()
+        self.history_and_mem._add_all_buttons()
+        self._configure_history_buttons()
         return result
             
-
     def save_operation(self, text):
-        # print("__FUNCTION__save_operation(val)")
         self.last_action_was_operation = True
         self.previous_operation = text
         self.numpad.prev_display_label.config(text=text)
 
-
     def print_last_display(self):
-        # print("__FUNCTION__print_last_display()")
-        # print("     previous_operation=", previous_operation)
         if self.previous_operation != "":
             self.numpad.prev_display_label.config(text=self.previous_operation)
 
-
     def print_to_display(self, val):
-        # print("__FUNCTION__print_to_display(val)")
-        # print_last_display()
-        # current_text = decimal.Decimal(display_label['text'])
-        # print(" current_text = ", current_text)
-        # print(" val = ", val)
         try:
             if float(val) - int(val) == 0:
-                # new_text = current_text + '\n' + str(int(val))
                 self.numpad.display_label.config(text=str(int(val)))
             else:
-                # new_text = current_text + '\n' + str(val)
                 self.numpad.display_label.config(text=str(val))
         except ValueError:
             self.numpad.display_label.config(text=str(val))
 
     def _on_numpad_press(self, text):
-        # print("__FUNCTION__on_numpad_press", text)
         if self.previous_operation_calculated:
             self.save_operation("")
             self.previous_operation_calculated = False
@@ -152,32 +140,25 @@ class SimpleCalculator(HistoryButtons, tk.Frame):
         else:
             self.numpad.display_label.config(text="error")
 
-
     def _on_button_press(self, text):
-        # print("__FUNCTION__on_button_press", text)
-        # print("last_action_was_operation = ", last_action_was_operation)
         if self.previous_operation_calculated and text != 'CE':
             self.save_operation("")
             self.previous_operation_calculated = False
         current_text = self.numpad.display_label['text']
         if current_text != "":
             if text == 'C':
-                # display_label.config(text="")
                 self.numpad.display_label.config(text='')
                 self.previous_operation = ''
                 self.numpad.prev_display_label.config(text='')
                 self.previous_operation_calculated = False
             elif text == 'CE':
-                # display_label.config(text="")
                 self.numpad.display_label.config(text='')
             elif text == 'BSPC':
-                # display_label.config(text=current_text[:len(current_text) - 1])
                 self.print_to_display(current_text[:len(current_text) - 1])
             elif text == '%':
                 print('%')
             elif text == '1/x':
                 try:
-                    # print(type(current_text))
                     new_val = 1 / float(current_text)
                 except:
                     raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
@@ -197,144 +178,28 @@ class SimpleCalculator(HistoryButtons, tk.Frame):
             elif text == '/' or text == 'x' or text == '--' or text == '+':
                 # if last_action_was_operation, then need to get rid of the last operation and replace it with the new
                 if self.last_action_was_operation:
-                    # print(previous_operation)
                     self.previous_operation = self.previous_operation[:len(self.previous_operation) - 1]
-                    # print(previous_operation + ".")
                 self.save_operation(current_text + ' ' + text)
-            # elif text == 'x':
-            #     print(text)
-            # elif text == '--':
-            #     print(text)
-            # elif text == '+':
-            #     print(text)
             elif text == '=':
-                # print(previous_operation)
                 if self.previous_operation == '' or (len(self.previous_operation.split()) == 2 and self.previous_operation[-1] == '='):
-                    # print(previous_operation)
-                    # print(previous_operation[-1])
                     self.save_operation(current_text + ' ' + text)
                     value = self.execute_operation()
                     self.print_to_display(value)
                 else:
                     self.save_operation(self.numpad.prev_display_label['text'] + ' ' + current_text + ' ' + text)
-                    # print(previous_operation)
                     value = self.execute_operation()
                     self.print_to_display(value)
             else:
                 # print("here")
                 raise Exception("Error, text not recognized")
 
-# current plan is this:
-# create the root first, then initialize the SimpleCalculator with that root
-# refactor the code to put all functions inside SimpleCalculator and create classes to initialize
-# the different tkinter components like it was done with the history buttons
 
-
+# decimals in an attempt to get rid of floating point error
 decimal.setcontext(decimal.BasicContext)
 decimal.getcontext()
-# decimal.getcontext().prec = 5
-
-# buttons_symbols = ['%', 'CE', 'C', 'BSPC', '1/x', 'x^2', 'sqrt(x)', '/', '7', '8', '9', 'x', '4', '5', '6', '--', '1', '2', '3', '+', '-', '0', '.', '=']
-# numpad_buttons_symbols = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.']
-# history = []
 
 
-# previous_operation = ""
-# previous_operation_calculated = False
-# last_action_was_operation = False
-
-
-
-
-
-# Holds the whole structure. So when you want to attach components, attach it to the root
 root = tk.Tk()
-# wrapper_canvas = tk.Canvas(root, height=1000, width=1000)
-# wrapper_canvas.pack(fill="both", expand=True)
-
-# numpad_canvas = tk.Canvas(root, height=700, width=1400, bg="#263D42")
-# numpad_canvas.pack(fill="both", expand=True)
-
-calc = SimpleCalculator(root)
+calc = StandardCalculator(root)
 
 root.mainloop()
-
-# display = tk.Frame(root, height=700, width=700, bg="#263D42")
-# display.pack(side=tk.LEFT, fill="both", expand=True)
-# hist_mem = tk.Frame(root, height=700, width=700, bg="#263D42")
-# hist_mem.pack(side=tk.RIGHT, fill="both", expand=True)
-
-# display_label = tk.Label(display, text="", background="white")
-# prev_display_label = tk.Label(display, text="", background="gray")
-# display_label.pack(fill="both", expand=True)
-# prev_display_label.pack(fill="both", expand=True)
-# display_label.place(relx=0, rely=0.1, relwidth=1, relheight=0.12)
-# prev_display_label.place(relx=0, rely=0, relwidth=1, relheight= 0.12)
-
-# hist_label = tk.Label(hist_mem, text="History", background="green")
-# hist_label.pack(fill="both", expand=True)
-# hist_label.place(relx=0, rely=0, relwidth=1, relheight=0.12)
-
-# hist_buttons = HistoryButtons(hist_mem)
-# hist_buttons.pack(fill="both", expand=True)
-# hist_buttons.place(rely=0.12, relwidth=1, relheight=0.88)
-# hist_buttons._add_all_buttons()
-
-# hist_frame_scroll = tk.Frame(hist_mem)
-# hist_frame_scroll.pack(fill="both", expand=True)
-# hist_frame_scroll.place(rely = 0.12, relwidth=1, relheight=1)
-
-# hist_scrollbar = tk.Scrollbar(hist_frame_scroll, activebackground="#194D33", bg="#2F875B")
-# hist_scrollbar.pack(side=tk.RIGHT, fill = tk.Y)
-
-# hist_list = tk.Listbox(hist_frame_scroll, bg="#AECCBD", yscrollcommand=hist_scrollbar.set)
-# hist_list.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-# # hist_list.place(relheight = 1, relwidth=0.9)
-
-# for line in range(50):
-#     hist_list.insert(tk.END, "          This is line number " + str(line))
-
-# hist_scrollbar.config(command = hist_list.yview)
-
-# frame = tk.Frame(canvas, bg="white")
-# frame.place(relwidth=0.8, relheight=0.8, relx=0.1, rely=0.1)
-
-# buttons = []
-# next_row = False
-# current_row = 2
-# current_col = 0
-# for index, symbol in enumerate(buttons_symbols):
-#     if symbol in numpad_buttons_symbols:
-#         button = tk.Button(display, text=symbol, command=partial(on_numpad_press, symbol))
-#         if index % 4 == 0 and index != 0:
-#             current_row += 1
-#             current_col = 0
-#         button.place(relx=(current_col)*0.248, rely=0.125*current_row, relwidth=0.248, relheight=0.125)
-#         buttons.append(button)
-#         current_col += 1
-#     else:
-#         button = tk.Button(display, text=symbol, command=partial(on_button_press, symbol))
-#         if index % 4 == 0 and index != 0:
-#             current_row += 1
-#             current_col = 0
-#         button.place(relx=(current_col)*0.248, rely=0.125*current_row, relwidth=0.248, relheight=0.125)
-#         buttons.append(button)
-#         current_col += 1
-
-# print(numpad_buttons)
-
-# openFile = tk.Button(root, text="")
-
-# root.mainloop()
-
-
-# from tkinter import *
-# from tkinter import ttk
-# root = Tk()
-# frm = ttk.Frame(root, padding=10, height=700, width=700)
-# canvas = tk.Canvas(root, height=700, width=700, bg="#263D42")
-# print(canvas.configure().keys())
-# print(frm.configure().keys())
-# frm.grid()
-# ttk.Label(frm, text="Hello World!").grid(column=0, row=0)
-# ttk.Button(frm, text="Quit", command=root.destroy).grid(column=1, row=0)
