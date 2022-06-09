@@ -156,22 +156,26 @@ class StandardCalculator(tk.Frame):
             elif text == 'BSPC':
                 self.print_to_display(current_text[:len(current_text) - 1])
             elif text == '%':
-                print('%')
+                # IMPLEMENT
+                pass
             elif text == '1/x':
                 try:
-                    new_val = 1 / float(current_text)
+                    new_val = decimal.Decimal(1) / decimal.Decimal(current_text)
+                    new_val = str(new_val).rstrip('0') if "." in new_val else str(new_val)
                 except:
                     raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
                 self.print_to_display(new_val)
             elif text == 'x^2':
                 try:
-                    new_val = decimal.Decimal(current_text) ** decimal.Decimal(2)
+                    new_val = decimal.Decimal(current_text) ** decimal.Decimal('2')
+                    new_val = str(new_val).rstrip('0') if "." in str(new_val) else str(new_val)
                 except:
                     raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
                 self.print_to_display(new_val)
             elif text == 'sqrt(x)':
                 try:
                     new_val = decimal.Decimal(current_text).sqrt()
+                    new_val = str(new_val).rstrip('0') if "." in new_val else str(new_val)
                 except:
                     raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
                 self.print_to_display(new_val)
@@ -195,7 +199,7 @@ class StandardCalculator(tk.Frame):
 
 
 # decimals in an attempt to get rid of floating point error
-decimal.setcontext(decimal.BasicContext)
+# decimal.setcontext(decimal.BasicContext)
 decimal.getcontext()
 
 
