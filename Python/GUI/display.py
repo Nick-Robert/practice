@@ -1,5 +1,5 @@
 import tkinter as tk
-from config import buttons_symbols, numpad_buttons_symbols
+from config import buttons_symbols, numpad_buttons_symbols, default_val
 
 
 class Display(tk.Frame):
@@ -14,6 +14,7 @@ class Display(tk.Frame):
         self.prev_display_label.pack(fill="both", expand=True)
         self.display_label.place(relx=0, rely=0.1, relwidth=1, relheight=0.12)
         self.prev_display_label.place(relx=0, rely=0, relwidth=1, relheight= 0.12)
+        self.display_label.config(text=default_val)
 
 
 

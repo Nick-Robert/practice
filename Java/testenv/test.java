@@ -1,3 +1,7 @@
+// Compile with javac
+// Run it by running java [classname without .class]
+
+package testenv;
 
 
 public class test {

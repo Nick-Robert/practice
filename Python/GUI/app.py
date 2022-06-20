@@ -1,13 +1,13 @@
 """
 TODO
 - Add functionality to %
-- Make the default value be 0
 - Add memory
 - Need to fix the floating point error somehow. Consider using the ASCII method 
 
 DONE
 - Refactor code to be OO
 - Create history list
+- Make the default value be 0
 
 """
 
@@ -15,7 +15,7 @@ from history import HistoryButtons
 from display import Numberpad
 import tkinter as tk
 import decimal
-from config import buttons_symbols, numpad_buttons_symbols, history
+from config import buttons_symbols, numpad_buttons_symbols, history, default_val
 
 
 class StandardCalculator(tk.Frame):
@@ -95,8 +95,8 @@ class StandardCalculator(tk.Frame):
             else:
                 raise Exception("Major error in compute_operation")
         elif len(operation_list) == 2:
-            result = operation_list[0]
-        history.append(self.previous_operation + " " + str(result))
+            result = decimal.Decimal(operation_list[0])
+        history.append(self.previous_operation + " " + str(format(result, '.6f')).rstrip('0').rstrip('.'))
         self.history_and_mem._remove_all_buttons()
         self.history_and_mem._add_all_buttons()
         self._configure_history_buttons()
@@ -125,34 +125,42 @@ class StandardCalculator(tk.Frame):
             self.save_operation("")
             self.previous_operation_calculated = False
         if self.last_action_was_operation:
-            self.numpad.display_label.config(text='')
+            self.numpad.display_label.config(text=default_val)
             self.last_action_was_operation = False
         current_text = self.numpad.display_label['text']
-        if text != '-':
-            self.numpad.display_label.config(text=current_text+text)
-        elif text == '-' and current_text != "":
-            if current_text[0] == '-':
-                self.numpad.display_label.config(text=current_text[1:])
+        if current_text != '0':
+            if text != '-':
+                self.numpad.display_label.config(text=current_text+text)
+            elif text == '-':# and current_text != "":
+                if current_text[0] == '-':
+                    self.numpad.display_label.config(text=current_text[1:])
+                else:
+                    self.numpad.display_label.config(text='-'+current_text)
+            # elif text == '-' and current_text == "":
+            #     self.numpad.display_label.config(text=default_val)
             else:
-                self.numpad.display_label.config(text='-'+current_text)
-        elif text == '-' and current_text == "":
-            self.numpad.display_label.config(text="")
+                self.numpad.display_label.config(text="error")
         else:
-            self.numpad.display_label.config(text="error")
+            if text != '-':
+                self.numpad.display_label.config(text=text)
+            elif text == '-':# and current_text != "":
+                self.numpad.display_label.config(text=default_val)
+            else:
+                self.numpad.display_label.config(text="error")
 
     def _on_button_press(self, text):
         if self.previous_operation_calculated and text != 'CE':
             self.save_operation("")
             self.previous_operation_calculated = False
         current_text = self.numpad.display_label['text']
-        if current_text != "":
+        if current_text != default_val:
             if text == 'C':
-                self.numpad.display_label.config(text='')
+                self.numpad.display_label.config(text=default_val)
                 self.previous_operation = ''
                 self.numpad.prev_display_label.config(text='')
                 self.previous_operation_calculated = False
             elif text == 'CE':
-                self.numpad.display_label.config(text='')
+                self.numpad.display_label.config(text=default_val)
             elif text == 'BSPC':
                 self.print_to_display(current_text[:len(current_text) - 1])
             elif text == '%':
@@ -161,21 +169,21 @@ class StandardCalculator(tk.Frame):
             elif text == '1/x':
                 try:
                     new_val = decimal.Decimal(1) / decimal.Decimal(current_text)
-                    new_val = str(new_val).rstrip('0') if "." in new_val else str(new_val)
+                    new_val = str(format(new_val, '.6f')).rstrip('0').rstrip('.') #if "." in str(new_val) else str(format(new_val, '.6f'))
                 except:
                     raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
                 self.print_to_display(new_val)
             elif text == 'x^2':
                 try:
                     new_val = decimal.Decimal(current_text) ** decimal.Decimal('2')
-                    new_val = str(new_val).rstrip('0') if "." in str(new_val) else str(new_val)
+                    new_val = str(format(new_val, '.6f')).rstrip('0').rstrip('.') #if "." in str(new_val) else str(format(new_val, '.6f'))
                 except:
                     raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
                 self.print_to_display(new_val)
             elif text == 'sqrt(x)':
                 try:
                     new_val = decimal.Decimal(current_text).sqrt()
-                    new_val = str(new_val).rstrip('0') if "." in new_val else str(new_val)
+                    new_val = str(format(new_val, '.6f')).rstrip('0').rstrip('.')# if "." in str(new_val) else str(format(new_val, '.6f'))
                 except:
                     raise Exception("Error, current_text == " + current_text + " which cannot be made into an int")
                 self.print_to_display(new_val)
